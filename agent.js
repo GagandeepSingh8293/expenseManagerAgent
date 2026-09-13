@@ -64,13 +64,11 @@ async function callAgent() {
 
             messages.push({
                 role: "system",
-                content: `You are now using the ${skillName} skill.
-
-${skillInstructions}`,
+                content: `You are now using the ${skillName} skill.${skillInstructions}`,
             });
             loadedSkills.add(skillName);
 
-            console.log(`🔧 Skill loaded: ${skillName}`);
+            console.log(`Skill loaded: ${skillName}`);
         }
 
         while (true) {
