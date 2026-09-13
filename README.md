@@ -1,4 +1,4 @@
-# first-agent
+# Expense manager agent
 
 To install dependencies:
 
