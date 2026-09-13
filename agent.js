@@ -1,5 +1,6 @@
 import readline from "readline";
 import Groq from "groq-sdk";
+import { readFile } from "fs/promises";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -9,6 +10,7 @@ const rl = readline.createInterface({
     terminal: true,
 });
 
+const agentInstructions = await readFile("./AGENTS.md", "utf-8");
 const expenseDB = [];
 const incomeDB = [];
 
@@ -34,15 +36,12 @@ function normalizeMessage(message, fallbackRole = "assistant") {
 }
 
 async function callAgent() {
+    const loadedSkills = new Set();
     const messages = [
         {
             role: "system",
-            content: `You are Josh, a personal finance assistant. Your task is to assist user with their expenses, balances and financial planning. Current datetime: ${new Date().toISOString()}
-            You have access to the following tools:
-            1. getTotalExpenses({ from, to }): Get total expenses for a given time period
-            2. addExpense({ name, amount }): Add a new expense
-            3. addIncome({ name, amount }): Add a new income`
-        },
+            content: agentInstructions,
+        }
     ];
 
     while (true) {
@@ -57,6 +56,22 @@ async function callAgent() {
             role: "user",
             content: userInput,
         });
+
+        const skillName = getSkillForInput(userInput);
+
+        if (skillName) {
+            const skillInstructions = await loadSkill(skillName);
+
+            messages.push({
+                role: "system",
+                content: `You are now using the ${skillName} skill.
+
+${skillInstructions}`,
+            });
+            loadedSkills.add(skillName);
+
+            console.log(`🔧 Skill loaded: ${skillName}`);
+        }
 
         while (true) {
             const chatCompletion = await getGroqChatCompletion(messages);
@@ -200,4 +215,32 @@ function addIncome({ name, amount }) {
     console.log(`Adding income: ${name} - ${amount}`);
     incomeDB.push({ name, amount });
     return 'Income added successfully';
+}
+
+export async function loadSkill(skillName) {
+    const path = `./skills/${skillName}/SKILL.md`;
+
+    return await readFile(path, "utf-8");
+}
+
+function getSkillForInput(userInput) {
+    const input = userInput.toLowerCase();
+
+    if (
+        input.includes("expense") ||
+        input.includes("spent") ||
+        input.includes("spending")
+    ) {
+        return "expense-management";
+    }
+
+    if (
+        input.includes("income") ||
+        input.includes("salary") ||
+        input.includes("earned")
+    ) {
+        return "income-management";
+    }
+
+    return null;
 }
